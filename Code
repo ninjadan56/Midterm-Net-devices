@@ -1,0 +1,117 @@
+/*
+    serve up a website with some sensor data on it
+*/
+
+#include <ESP8266WiFi.h>
+
+#define SECRET_SSID "bort"
+#define SECRET_PASS "34tingisnice"
+
+const int buttonPin = 5; 
+
+char ssid[] = SECRET_SSID;        // your network SSID (name)
+char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
+
+// Create an instance of the server
+// specify the port to listen on as an argument
+WiFiServer server(80);
+
+void setup() {
+    // initialize the button pin as a input:
+  pinMode(buttonPin, INPUT);
+  // Open serial communications :
+  Serial.begin(115200);
+
+Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, pass);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.println("WiFi connected");
+
+  // Start the server
+  server.begin();
+  Serial.println("Server started, currently at ... ");
+
+  // Print the IP address
+  Serial.println(WiFi.localIP());
+}
+  
+void loop() {
+  // create an instance of the client class
+  // this is needed for an incoming client
+  WiFiClient client = server.available();
+ 
+  if (client) { // if a client connects
+ 
+    Serial.println("new client");
+ 
+    // HTTP requests end with a blank line
+    // we'll use this to know the request from the client has finished
+    boolean currentLineIsBlank = true;
+ 
+    while (client.connected()) { // while someone is connected to the server
+      
+      if (client.available()) { // if there are bytes from the client 
+                                // these would be sent via a broweser, etc
+                                
+        char c = client.read(); // read a byte sent from a client
+        Serial.write(c); // print it to the serial monitor
+        
+        // if you've gotten to the end of the line (received a newline
+        // character) and the line is blank, the http request has ended,
+        // so you can send a reply
+        if (c == '\n' && currentLineIsBlank) {
+          // send a standard http response header
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: text/html");
+          client.println("Connection: close");  // the connection will be closed after completion of the response
+          client.println("Refresh:2 "); // refresh the page every second
+          client.println();
+          client.println("<!DOCTYPE HTML>");
+          client.println("<html>"); // you need to expicitly wriet out all html
+          client.println("<title>Button Counter</title>");
+          client.print("LifeLine");  
+          client.println("<br />");
+          client.print("Waiting for response...");
+          
+         // read the pushbutton input pin:
+         int buttonState = digitalRead(buttonPin);
+        // compare the buttonState to its previous state
+           if (buttonState == HIGH) {
+            client.println("<br />");
+            client.print("Help!! I've fallen and I can't get up");
+//         client.println("<p>");
+//         client.println("<img src=fallen.gif>");
+//         client.println("</p>");
+           } 
+//    delay(50);
+//    
+  // save the current state as the last state, for next time through the loop
+//  lastButtonState = buttonState;
+          client.println("</html>"); // close the tag
+          break; // escape the statement     
+        }
+          
+        if (c == '\n') { 
+          // you're starting a new line
+          currentLineIsBlank = true;
+        } else if (c != '\r') {
+          // you've gotten a character on the current line
+          currentLineIsBlank = false;
+        }
+      }
+    }
+    // give the web browser time to receive the data
+    delay(1);
+    // close the connection:
+    client.stop();
+    Serial.println("client disconnected");
+  }
+  }
